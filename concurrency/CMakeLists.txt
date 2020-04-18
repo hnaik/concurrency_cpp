@@ -1,4 +1,5 @@
 set(lib_srcs
+  src/core/logger.cpp
   src/core/utility.cpp)
 
 add_library(concurrency SHARED ${lib_srcs})

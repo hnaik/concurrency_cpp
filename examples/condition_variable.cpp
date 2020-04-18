@@ -27,7 +27,7 @@
 #include <thread>
 #include <utility>
 
-#include "concurrency/core/utility.h"
+#include <concurrency/concurrency>
 
 namespace util = concurrency::core::utility;
 
@@ -68,55 +68,17 @@ void Spsc_q<DataType>::process()
     }
 }
 
-class Logger {
-public:
-    Logger(const std::string& level, const std::string& msg);
-
-    friend std::ostream& operator<<(std::ostream&, const Logger&);
-
-private:
-    std::string level_;
-    std::string msg_;
-
-    template <typename T>
-    using tp = std::chrono::time_point<T>;
-
-    tp<std::chrono::steady_clock> timestamp_;
-
-    static const tp<std::chrono::steady_clock> steady_startup_;
-    static const tp<std::chrono::system_clock> system_startup_;
-};
-
-const Logger::tp<std::chrono::steady_clock> Logger::steady_startup_ =
-    std::chrono::steady_clock::now();
-const Logger::tp<std::chrono::system_clock> Logger::system_startup_ =
-    std::chrono::system_clock::now();
-
-Logger::Logger(const std::string& level, const std::string& msg)
-    : level_{level}
-    , msg_{msg}
-    , timestamp_{std::chrono::steady_clock::now()}
+std::string make_message(int id)
 {
-}
-
-std::ostream& operator<<(std::ostream& os, const Logger& log)
-{
-    std::time_t t_c = std::chrono::system_clock::to_time_t(
-        Logger::system_startup_ - (log.timestamp_ - Logger::steady_startup_));
-
-    os << std::put_time(std::localtime(&t_c), "%F %T") << " [" << log.level_
-       << "] [tid:" << std::this_thread::get_id() << "] " << log.msg_;
-    return os;
+    return "[producer thread id:" + util::thread_id_s() + "] message " +
+           std::to_string(id);
 }
 
 template <typename Q>
 void produce_logs(Q& q)
 {
     for(int i = 0; i < 10; ++i) {
-        std::stringstream ss;
-        const auto msg =
-            "[tid:" + util::thread_id_s() + "] message " + std::to_string(i);
-        q.add(Logger{"INFO", msg});
+        q.add(concurrency::core::Logger{"INFO", make_message(i), true});
     }
 }
 
@@ -124,9 +86,11 @@ int main(int argc, char** argv)
 {
     util::print_preamble(argv[0], std::cout);
 
-    Spsc_q<Logger> log_q;
+    Spsc_q<concurrency::core::Logger> log_q;
     std::thread th_c{[&log_q] { log_q.process(); }};
     std::thread th_p{[&log_q] { produce_logs(log_q); }};
+
+    std::cout << "^C to exit ...\n";
 
     th_p.join();
     th_c.join();
