@@ -38,8 +38,6 @@ private:
     std::string msg_;
     bool print_thread_id_;
 
-    template <typename T>
-    using tp = std::chrono::time_point<T>;
     using steady_clock = std::chrono::time_point<std::chrono::steady_clock>;
     using system_clock = std::chrono::time_point<std::chrono::system_clock>;
 

@@ -29,12 +29,26 @@
 
 #include <concurrency/concurrency>
 
-namespace util = concurrency::core::utility;
+namespace core = concurrency::core;
+namespace util = core::utility;
 
+/*!
+ * A Single Producer Single Consumer Queue
+ * @tparam DataType the type of data that the queue will be storing
+ */
 template <typename DataType>
 class Spsc_q {
 public:
+    /**
+     * Function to add a data object to the queue.
+     * @param data universal reference to the object to be added to the queue
+     */
     void add(DataType&& data);
+
+    /**
+     * Function to start process the queue. This function will take objects out
+     * or the queue and process them
+     */
     void process();
 
 private:
@@ -68,6 +82,35 @@ void Spsc_q<DataType>::process()
     }
 }
 
+/**
+ * Helper function to make producer messages
+ * @param id message id
+ */
+std::string make_message(int id);
+
+/**
+ * A demo function that runs continuously and adds log objects to the queue
+ * @tparam Q Queue type
+ * @param queue the Queue object
+ */
+template <typename Q>
+void produce_logs(Q& queue);
+
+int main(int argc, char** argv)
+{
+    util::print_preamble(argv[0], std::cout);
+
+    Spsc_q<core::Logger> log_q;
+    std::thread th_c{[&log_q] { log_q.process(); }};
+    std::thread th_p{[&log_q] { produce_logs(log_q); }};
+
+    std::cout << "^C to exit ...\n";
+
+    th_p.join();
+    th_c.join();
+}
+
+// Helper function implementations
 std::string make_message(int id)
 {
     return "[producer thread id:" + util::thread_id_s() + "] message " +
@@ -78,20 +121,6 @@ template <typename Q>
 void produce_logs(Q& q)
 {
     for(int i = 0; i < 10; ++i) {
-        q.add(concurrency::core::Logger{"INFO", make_message(i), true});
+        q.add(core::Logger{"INFO", make_message(i), true});
     }
-}
-
-int main(int argc, char** argv)
-{
-    util::print_preamble(argv[0], std::cout);
-
-    Spsc_q<concurrency::core::Logger> log_q;
-    std::thread th_c{[&log_q] { log_q.process(); }};
-    std::thread th_p{[&log_q] { produce_logs(log_q); }};
-
-    std::cout << "^C to exit ...\n";
-
-    th_p.join();
-    th_c.join();
 }
